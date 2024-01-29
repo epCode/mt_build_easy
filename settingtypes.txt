@@ -1,0 +1,1 @@
+SLOWBUILD_ENABLED (Makes the placing of mass blocks slower, more fancy) bool false
