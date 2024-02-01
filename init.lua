@@ -621,7 +621,7 @@ local function set_view_hud(player, thing, materials)
           text = coolnode..":",
           number = fontcolor,
           alignment = {x=-1, y=0},
-          offset = {x=150, y=120+(tick*20)},
+          offset = {x=250, y=120+(tick*20)},
           z_index = 110,
           style = 0,
       })
@@ -632,7 +632,7 @@ local function set_view_hud(player, thing, materials)
           text = cap.."/"..amount,
           number = fontcolor,
           alignment = {x=1, y=0},
-          offset = {x=155, y=120+(tick*20)},
+          offset = {x=255, y=120+(tick*20)},
           z_index = 110,
           style = 0,
       })
