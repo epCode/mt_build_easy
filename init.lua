@@ -557,7 +557,7 @@ end)
 controls.register_on_press(function(player, key)
   if key == "RMB" then canceled[player] = false end
 
-  if key == "aux1" and player:get_player_control().sneak and building_schem[player] then
+  if key == "aux1" and building_schem[player] then
     building_schem[player]:get_luaentity().rotate(building_schem[player]:get_luaentity())
   end
 
