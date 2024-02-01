@@ -124,9 +124,9 @@ local function naming_build_form(user) -- pick schem to place
 
 	local formspec =
     "formspec_version[4]"..
-    "size[5,5]"..
+    "size[8,5]"..
     slist..
-    "background[-0.5,-0;6,6;mt_bg.png]"
+    "background[-0.5,-0;9,6;mt_bg.png]"
 
 	minetest.show_formspec(user:get_player_name(), "mt_build_easy:name_schem", formspec)
 end
@@ -198,18 +198,24 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 
 end)
 
-local function rotate_pos(pos, rot)
+local function rotate_pos(pos, rot, weird_exeption)
+  if not weird_exeption then
+    weird_exeption = 1
+  else
+    weird_exeption = -1
+  end
+
   --print(dir)
   if rot == 0 or rot == 360 then
     pos = pos
   elseif rot == 90 then
-    pos = vector.new(pos.z, pos.y, -pos.x)
+    pos = vector.new(math.abs(pos.z), pos.y, -math.abs(pos.x)+2)
     --self._schempos = vector.add(ppos, vector.new(-4,0,0))
   elseif rot == 180 then
-    pos = vector.new(-pos.x, pos.y, -pos.z)
+    pos = vector.new(-math.abs(pos.x)+2, pos.y, -math.abs(pos.z)+2)
     --self._schempos = vector.add(ppos, vector.new(0,0,-4))
   else
-    pos = vector.new(-pos.z, pos.y, pos.x)
+    pos = vector.new(-math.abs(pos.z)+2, pos.y, math.abs(pos.x))
     --self._schempos = vector.add(ppos, vector.new(0,0,0))
   end
   return pos
@@ -217,8 +223,20 @@ end
 
 local function place_schem(player, pos, path, rot, schem_load)
 
+  if rot == 90 then
+    pos.z=pos.z-2
+  elseif rot == 180 then
+    pos.z=pos.z-2
+    pos.x=pos.x-2
+  elseif rot == 270 then
+    pos.x=pos.x-2
+  end
 
-  local pos1, pos2 = pos, vector.add(pos, schem_load.size)
+
+  local size = vector.new(rotate_pos(schem_load.size, rot, true))
+
+
+  local pos1, pos2 = pos, vector.add(pos, size)
 
 
   local replace = {}
@@ -278,12 +296,19 @@ local function place_schem(player, pos, path, rot, schem_load)
   local p1p2dist = vector.distance(pos1, pos2)
   local p1p2dir = vector.direction(pos1, pos2)
 
+  local loop1 = vector.new(0,0,0)
+  local loop2 = vector.new(schem_load.size.z-1,schem_load.size.y-1,schem_load.size.x-1)
+
+  loop1, loop2 = vector.sort(loop1, loop2)
+
+
 
   -- Modify data
-  for zs = 0, schem_load.size.z-1 do
-    for ys = 0, schem_load.size.y-1 do
-      for xs = 0, schem_load.size.x-1 do
-        local x,y,z=xs+pos.x, ys+pos.y, zs+pos.z
+  for zs = loop1.x, loop2.x do
+    for ys = loop1.y, loop2.y do
+      for xs = loop1.z, loop2.z do
+        local ns = rotate_pos(vector.new(xs,ys,zs), rot, true)
+        local x,y,z=ns.x+pos.x, ns.y+pos.y, ns.z+pos.z
         tick = tick + 1
 
         local thisnode = schem_load.data[tick].name
@@ -297,18 +322,20 @@ local function place_schem(player, pos, path, rot, schem_load)
               --param2data[vi] = node.param2
 
               if SLOWBUILD_ENABLED then
-                minetest.after((ys*300+zs*math.random(8,20)+xs*math.random(8,10))/1000, function()
+                minetest.after((ns.y*300+ns.z*math.random(8,20)+ns.x*math.random(8,10))/1000, function()
                   minetest.set_node(vector.new(x,y,z), {name=thisnode})
                 end)
               else
+
+                --minetest.get_player_by_name("singleplayer"):set_pos(vector.new(x,y,z))
                 data[vi] = minetest.get_content_id(schem_load.data[tick].name)
               end
           else
             node_ticks[thisnode] = node_ticks[thisnode]-1
-            if placers[schem_load.data[tick].name] then
-              placers[schem_load.data[tick].name] = placers[schem_load.data[tick].name]-1 -- one less block to be taken from player if not able to place
+            if placers[thisnode] then
+              placers[thisnode] = placers[thisnode]-1 -- one less block to be taken from player if not able to place
             else
-              print(schem_load.data[tick].name)
+              print(thisnode)
             end
           end
 
@@ -336,7 +363,7 @@ local function on_place_schem(itemstack, placer, pointed_thing)
   local luaentity = building_schem[placer]:get_luaentity()
   if not luaentity then return end
   local rot = math.round(math.deg(placer:get_look_horizontal())/90)*90
-  place_schem(placer, luaentity._schempos, path.."/"..luaentity._schem_name, tostring(rot), luaentity._schem)
+  place_schem(placer, luaentity._schempos, path.."/"..luaentity._schem_name, (luaentity._rotation or 0), luaentity._schem)
   --building_schem[placer]:remove()
   --building_schem[placer] = nil
   if material_hud[placer] then
@@ -584,8 +611,7 @@ local function set_view_hud(player, thing, materials)
       local cap = get_node_cap(player, {name=node})
       if amount > cap then fontcolor = 0xff2222 end
       tick = tick + 1
-      local coolnode = string.find(node, ":") or 0
-      coolnode = string.sub(node, coolnode+1, -1):gsub("_", " ")
+      local coolnode = minetest.registered_nodes[node].description or "UNKNOWN"
       material_hud[player] = material_hud[player] or {}
       material_hud[player][node] = material_hud[player][node] or {}
       material_hud[player][node][1] = player:hud_add({
@@ -673,6 +699,7 @@ minetest.register_entity("mt_build_easy:box", {
     local mousepos = vector.add(get_look_place(self._player, false, copytool), vector.new(0.5,0.5,0.5))
     local ppos = vector.round(vector.add(mousepos, vector.new(0.5,0.5,0.5)))
 
+
     if self._schem then
       ppos = vector.add(ppos, vector.new(-1,-1,-1))
       self._original_pos = ppos
@@ -680,6 +707,9 @@ minetest.register_entity("mt_build_easy:box", {
       local dir = self._rotation
       local size = self._schem.size
       size = rotate_pos(size, dir)
+      self._sizze = size
+      --minetest.chat_send_all(vector.to_string(size))
+
       --print(dir)
       --[[
       if dir == 0 or dir == 360 then
@@ -756,7 +786,8 @@ minetest.register_entity("mt_build_easy:box", {
       npos.z = npos.z + 0.5
     end
 
-    if self._schem then -- smoothly translate
+
+    if not self._line then
       local spos = self.object:get_pos()
       self.object:set_pos(vector.add(spos, vector.divide(vector.subtract(npos,spos), 3)))
     end
@@ -801,9 +832,7 @@ minetest.register_entity("mt_build_easy:box", {
         mesh = "selectionbox_flipped.obj",
       })
     end
-    if not self._schem and not self._line then
-      self.object:set_pos(npos)
-    end
+
 
   end,
   _rotation = 0,
