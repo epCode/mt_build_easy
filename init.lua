@@ -198,6 +198,22 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 
 end)
 
+local function rotate_pos(pos, rot)
+  --print(dir)
+  if rot == 0 or rot == 360 then
+    pos = pos
+  elseif rot == 90 then
+    pos = vector.new(pos.z, pos.y, -pos.x)
+    --self._schempos = vector.add(ppos, vector.new(-4,0,0))
+  elseif rot == 180 then
+    pos = vector.new(-pos.x, pos.y, -pos.z)
+    --self._schempos = vector.add(ppos, vector.new(0,0,-4))
+  else
+    pos = vector.new(-pos.z, pos.y, pos.x)
+    --self._schempos = vector.add(ppos, vector.new(0,0,0))
+  end
+  return pos
+end
 
 local function place_schem(player, pos, path, rot, schem_load)
 
@@ -321,8 +337,8 @@ local function on_place_schem(itemstack, placer, pointed_thing)
   if not luaentity then return end
   local rot = math.round(math.deg(placer:get_look_horizontal())/90)*90
   place_schem(placer, luaentity._schempos, path.."/"..luaentity._schem_name, tostring(rot), luaentity._schem)
-  building_schem[placer]:remove()
-  building_schem[placer] = nil
+  --building_schem[placer]:remove()
+  --building_schem[placer] = nil
   if material_hud[placer] then
     for key,index in pairs(material_hud[placer]) do
       placer:hud_remove(index[1])
@@ -513,7 +529,12 @@ end)
 
 controls.register_on_press(function(player, key)
   if key == "RMB" then canceled[player] = false end
-  if key ~= "LMB" or (not playerstuff[player] and not building_schem[player]) then return end
+
+  if key == "aux1" and player:get_player_control().sneak and building_schem[player] then
+    building_schem[player]:get_luaentity().rotate(building_schem[player]:get_luaentity())
+  end
+
+  if key ~= "LMB" or not (playerstuff[player] or building_schem[player]) then return end
   if building_schem[player] then
     building_schem[player]:remove()
     building_schem[player] = nil
@@ -656,23 +677,22 @@ minetest.register_entity("mt_build_easy:box", {
       ppos = vector.add(ppos, vector.new(-1,-1,-1))
       self._original_pos = ppos
       self._schempos = ppos
-      local dir = minetest.facedir_to_dir(minetest.dir_to_facedir(self._player:get_look_dir(), false))
-      dir = math.round((math.deg(vector.dir_to_rotation(dir).y))/90)*90
-      dir = (dir+360+360)%360
+      local dir = self._rotation
       local size = self._schem.size
+      size = rotate_pos(size, dir)
       --print(dir)
       --[[
       if dir == 0 or dir == 360 then
         size = size
       elseif dir == 90 then
         size = vector.new(-size.z+2, size.y, size.x)
-        self._schempos = vector.add(ppos, vector.new(-4,0,0))
+        --self._schempos = vector.add(ppos, vector.new(-4,0,0))
       elseif dir == 180 then
         size = vector.new(size.x, size.y, -size.z+2)
-        self._schempos = vector.add(ppos, vector.new(0,0,-4))
+        --self._schempos = vector.add(ppos, vector.new(0,0,-4))
       else
         size = vector.new(size.z, size.y, size.x)
-        self._schempos = vector.add(ppos, vector.new(0,0,0))
+        --self._schempos = vector.add(ppos, vector.new(0,0,0))
       end]]
       ppos = vector.add(ppos, size)
     end
@@ -786,6 +806,12 @@ minetest.register_entity("mt_build_easy:box", {
     end
 
   end,
+  _rotation = 0,
+  rotate = function(self)
+    self._rotation = (self._rotation + 90)%360
+    print(self._rotation)
+  end,
+
   glow = 2,
 })
 
