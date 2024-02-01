@@ -800,20 +800,22 @@ minetest.register_entity("mt_build_easy:box", {
 
     local available = set_view_hud(self._player, self, self._materials)
 
+    -- set box textures
     local textures = self.object:get_properties().textures
     if self._node.name == "air" and self._copy then
-      self.object:set_properties({textures={"mt_build_easy_half_copy.png"}})
+      textures={"mt_build_easy_half_copy.png"} -- copying a structure
     elseif self._node.name == "air" and not self._copy or self._schem then
       if available then
-        self.object:set_properties({textures={"mt_build_easy_half_place_available.png"}})
+        textures={"mt_build_easy_half_place_available.png"} -- placing sctructure if player has all required materials
       else
-        self.object:set_properties({textures={"mt_build_easy_half_place.png"}})
+        textures={"mt_build_easy_half_place.png"} -- doesn't have all the materials
       end
     elseif self.volume > get_node_cap(self._player, self._node) and textures[1] ~= "mt_build_easy_half_red.png" then
-      self.object:set_properties({textures={"mt_build_easy_half_red.png"}})
+      textures={"mt_build_easy_half_red.png"} -- Placing nodes when the box has more volume than player has
     elseif self.volume <= get_node_cap(self._player, self._node) and textures[1] ~= "mt_build_easy_half_green.png" then
-      self.object:set_properties({textures={"mt_build_easy_half_green.png"}})
+      textures={"mt_build_easy_half_green.png"} -- Placing nodes
     end
+    self.object:set_properties({textures=textures})
 
     self._size = size
 
@@ -821,21 +823,21 @@ minetest.register_entity("mt_build_easy:box", {
 
     if self._line then
       self.object:set_properties({
-        mesh = "selectionbox_line.obj",
+        mesh = "selectionbox_line.obj", -- unsused corrently
       })
     elseif negitives % 2 == 0 then
       self.object:set_properties({
-        mesh = "selectionbox.obj",
+        mesh = "selectionbox.obj", -- normal
       })
     else
       self.object:set_properties({
-        mesh = "selectionbox_flipped.obj",
+        mesh = "selectionbox_flipped.obj", -- flipped normals for inverted mesh (used for transpare issues)
       })
     end
 
 
   end,
-  _rotation = 0,
+  _rotation = 0, -- possible values 0, 90, 180, 270
   rotate = function(self)
     self._rotation = (self._rotation + 90)%360
   end,
