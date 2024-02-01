@@ -10,7 +10,7 @@ local schem_create_pos = {}
 
 local MAXVOLUMECOPY = minetest.settings:get("MAXVOLUMECOPY") or 10000
 
-local SLOWBUILD_ENABLED = minetest.settings:get("SLOWBUILD_ENABLED") or false
+local SLOWBUILD_ENABLED = minetest.settings:get("SLOWBUILD_ENABLED") or true
 
 local server_place_que = {}
 
@@ -104,13 +104,13 @@ local function build_form(itemstack, user, pointed_thing, formextra) -- pick sch
     "formspec_version[4]"..
     "size[8,8]"..
 
-    "background[-0.5,-0;9,9;mt_bg.png]"..
+    "background[-0.5,-0;9,9;mt_build_easy_mt_bg.png]"..
     slist..
 
 
     --"image[2.4,6.9;3.2,1.2;mt_black.png]"..
-    "image_button_exit[4.5,7;3,1;mt_button.png;close;Close]"..
-    "image_button_exit[0.5,7;3,1;mt_button.png;submit;Ok]"..(formextra or "")
+    "image_button_exit[4.5,7;3,1;mt_build_easy_mt_button.png;close;Close]"..
+    "image_button_exit[0.5,7;3,1;mt_build_easy_mt_button.png;submit;Ok]"..(formextra or "")
 	minetest.show_formspec(user:get_player_name(), "mt_build_easy:pick_schem", formspec)
 end
 
@@ -126,7 +126,7 @@ local function naming_build_form(user) -- pick schem to place
     "formspec_version[4]"..
     "size[8,5]"..
     slist..
-    "background[-0.5,-0;9,6;mt_bg.png]"
+    "background[-0.5,-0;9,6;mt_build_easy_mt_bg.png]"
 
 	minetest.show_formspec(user:get_player_name(), "mt_build_easy:name_schem", formspec)
 end
@@ -135,7 +135,7 @@ end
 minetest.register_on_player_receive_fields(function(player, formname, fields)
 
 
-  if formname == "mt_build_easy:name_schem" then
+  if formname == "mt_build_easy:name_schem" then -- form to name the structure
     if not fields[fields.key_enter_field] or fields[fields.key_enter_field] == "" or fields[fields.key_enter_field] == " " then
       minetest.chat_send_player(player:get_player_name(), minetest.colorize("#f22", "Failed to save structure! Invalid Name."))
     else
@@ -160,7 +160,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 
 
 
-  if formname ~= "mt_build_easy:pick_schem" then return end
+  if formname ~= "mt_build_easy:pick_schem" then return end -- form to pick the structure
 
   local path = minetest.get_worldpath().."/"..player:get_player_name().."s_build_schems"
 
@@ -199,11 +199,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 end)
 
 local function rotate_pos(pos, rot, weird_exeption)
-  if not weird_exeption then
-    weird_exeption = 1
-  else
-    weird_exeption = -1
-  end
+  -- calculates rotation of a vector, I don't know why it's like this, but it is.
 
   --print(dir)
   if rot == 0 or rot == 360 then
@@ -270,7 +266,6 @@ local function place_schem(player, pos, path, rot, schem_load)
     end
   end
 
-  local c_stuff  = minetest.get_content_id("air")
   -- Read data into LVM
   local vm = minetest.get_voxel_manip()
   local emin, emax = vm:read_from_map(pos1, pos2)
@@ -285,16 +280,11 @@ local function place_schem(player, pos, path, rot, schem_load)
 
 
 
-  --local size = rotate_schem(schem_load.size, rot)
 
   local que_table_name = tostring(math.random(10000))
   server_place_que[player] = server_place_que[player] or {}
   server_place_que[player][que_table_name] = {}
 
-  --local cap = get_node_cap(player, node)
-  local use_less = 0
-  local p1p2dist = vector.distance(pos1, pos2)
-  local p1p2dir = vector.direction(pos1, pos2)
 
   local loop1 = vector.new(0,0,0)
   local loop2 = vector.new(schem_load.size.z-1,schem_load.size.y-1,schem_load.size.x-1)
@@ -315,27 +305,24 @@ local function place_schem(player, pos, path, rot, schem_load)
         node_ticks[thisnode] = node_ticks[thisnode]+1
 
         local vi = a:index(x, y, z)
-        if not (node_ticks[thisnode] > node_caps[thisnode]) then
+        if node_ticks[thisnode] <= node_caps[thisnode] then
 
           if has_value(replace, data[vi]) then -- make sure we are placing on placeable ground
-              local pos = vector.new(x,y,z)
+              local nodepos = vector.new(x,y,z)
               --param2data[vi] = node.param2
 
               if SLOWBUILD_ENABLED then
                 minetest.after((ns.y*300+ns.z*math.random(8,20)+ns.x*math.random(8,10))/1000, function()
-                  minetest.set_node(vector.new(x,y,z), {name=thisnode})
+                  minetest.set_node(nodepos, {name=thisnode})
                 end)
               else
 
-                --minetest.get_player_by_name("singleplayer"):set_pos(vector.new(x,y,z))
                 data[vi] = minetest.get_content_id(schem_load.data[tick].name)
               end
           else
             node_ticks[thisnode] = node_ticks[thisnode]-1
             if placers[thisnode] then
               placers[thisnode] = placers[thisnode]-1 -- one less block to be taken from player if not able to place
-            else
-              print(thisnode)
             end
           end
 
@@ -362,7 +349,6 @@ local function on_place_schem(itemstack, placer, pointed_thing)
   if not building_schem[placer] then return end
   local luaentity = building_schem[placer]:get_luaentity()
   if not luaentity then return end
-  local rot = math.round(math.deg(placer:get_look_horizontal())/90)*90
   place_schem(placer, luaentity._schempos, path.."/"..luaentity._schem_name, (luaentity._rotation or 0), luaentity._schem)
   --building_schem[placer]:remove()
   --building_schem[placer] = nil
@@ -381,7 +367,7 @@ minetest.register_tool("mt_build_easy:copytool", {
   inventory_image = "mt_build_easy_copytool.png",
   groups = {},
   on_use = function(itemstack, user, pointed_thing)
-    if building_schem[player] then return end
+    if building_schem[user] then return end
     build_form(itemstack, user, pointed_thing)
     --naming_build_form(user)
   end,
@@ -451,9 +437,8 @@ local function place_stuff(node, placer) -- the function to place the nodes in s
     local p1p2dir = vector.direction(luaentity._original_pos, luaentity._ppos)
     --local line = true
 
-    if line then
+    if line then -- possible addition
       for i=1, p1p2dist do
-        print("s")
         local newpos = vector.round(vector.add(luaentity._original_pos, vector.multiply(p1p2dir,i)))
         local vi = a:index(newpos.x, newpos.y, newpos.z)
         local opos = vector.subtract(newpos,luaentity._original_pos)
@@ -554,6 +539,19 @@ controls.register_on_hold(function(player, key, time)
   playerstuff[player] = obj
 end)
 
+local function remove_view_hud(player)
+  if thing_hud[player] then
+    player:hud_remove(thing_hud[player])
+  end
+  if material_hud[player] then
+    for k,index in pairs(material_hud[player]) do
+      player:hud_remove(index[1])
+      player:hud_remove(index[2])
+      material_hud[player] = nil
+    end
+  end
+end
+
 controls.register_on_press(function(player, key)
   if key == "RMB" then canceled[player] = false end
 
@@ -570,16 +568,7 @@ controls.register_on_press(function(player, key)
     playerstuff[player] = nil
   end
   canceled[player] = true
-  if thing_hud[player] then
-    player:hud_remove(thing_hud[player])
-  end
-  if material_hud[player] then
-    for key,index in pairs(material_hud[player]) do
-      player:hud_remove(index[1])
-      player:hud_remove(index[2])
-      material_hud[player] = nil
-    end
-  end
+  remove_view_hud(player)
 end)
 
 
@@ -601,15 +590,17 @@ local function set_view_hud(player, thing, materials)
   end
 
 
+  local cap = get_node_cap(player, thing._node)
+  local text = "Volume: "..thing.volume.."/"..cap.."\nPunch to cancel."
+  local available = true
 
   if materials then
-    local text = "\nPunch to cancel."
-
+    text = "\nPunch to cancel."
     local tick = 0
     for node,amount in pairs(materials) do
       local fontcolor = 0x22dd22
       local cap = get_node_cap(player, {name=node})
-      if amount > cap then fontcolor = 0xff2222 end
+      if amount > cap then fontcolor = 0xff2222 available = nil end
       tick = tick + 1
       local coolnode = minetest.registered_nodes[node].description or "UNKNOWN"
       material_hud[player] = material_hud[player] or {}
@@ -637,14 +628,11 @@ local function set_view_hud(player, thing, materials)
           style = 0,
       })
     end
-    return
   end
 
-  local cap = get_node_cap(player, thing._node)
 
   local fontcolor = 0x22dd22
 
-  local text = "Volume: "..thing.volume.."/"..cap.."\nPunch to cancel."
 
   if thing.volume > cap then fontcolor = 0xff2222 end
 
@@ -657,19 +645,20 @@ local function set_view_hud(player, thing, materials)
       item = 0,
       direction = 0,
       alignment = {x=0, y=0},
-      offset = {x=0, y=-100},
+      offset = {x=0, y=-200},
       world_pos = {x=0, y=0, z=0},
       size = {x=0, y=0},
       z_index = 110,
       style = 0,
   })
+  return available
 end
 
 
 minetest.register_entity("mt_build_easy:box", {
   visual = "mesh",
   mesh = "selectionbox.obj",
-  textures = {"half_green.png"},
+  textures = {"mt_build_easy_half_green.png"},
   _player = nil,
   _node = {name="air"},
   pointable = false,
@@ -738,7 +727,7 @@ minetest.register_entity("mt_build_easy:box", {
     local current_size = vector.divide(self.object:get_properties().visual_size, 5)
     local fake_size = vector.add(
       self._size,
-      vector.multiply(vector.subtract(current_size, self._size), 0.5)
+      vector.multiply(vector.subtract(current_size, self._size), 0.3)
     )
 
     local negitives = 0
@@ -789,10 +778,16 @@ minetest.register_entity("mt_build_easy:box", {
 
     if not self._line then
       local spos = self.object:get_pos()
-      self.object:set_pos(vector.add(spos, vector.divide(vector.subtract(npos,spos), 3)))
+      self.object:set_pos(vector.add(spos, vector.divide(vector.subtract(npos,spos), 2)))
     end
 
     if ppos == self._old_ppos then return end
+
+    if (self._node and self._node.name ~= "air" and self._player:get_wielded_item():get_name() ~= self._node.name) or (self._node.name == "air" and self._player:get_wielded_item():get_name() ~= "mt_build_easy:copytool") then
+      remove_view_hud(self._player)
+      self.object:remove() return
+    end
+
     self._old_ppos = ppos
 
 
@@ -803,18 +798,23 @@ minetest.register_entity("mt_build_easy:box", {
       math.abs(math.abs(size.y))*
       math.abs(math.abs(size.z))
 
+    local available = set_view_hud(self._player, self, self._materials)
+
     local textures = self.object:get_properties().textures
     if self._node.name == "air" and self._copy then
-      self.object:set_properties({textures={"half_copy.png"}})
+      self.object:set_properties({textures={"mt_build_easy_half_copy.png"}})
     elseif self._node.name == "air" and not self._copy or self._schem then
-      self.object:set_properties({textures={"half_place.png"}})
-    elseif self.volume > get_node_cap(self._player, self._node) and textures[1] ~= "half_red.png" then
-      self.object:set_properties({textures={"half_red.png"}})
-    elseif self.volume <= get_node_cap(self._player, self._node) and textures[1] ~= "half_green.png" then
-      self.object:set_properties({textures={"half_green.png"}})
+      if available then
+        self.object:set_properties({textures={"mt_build_easy_half_place_available.png"}})
+      else
+        self.object:set_properties({textures={"mt_build_easy_half_place.png"}})
+      end
+    elseif self.volume > get_node_cap(self._player, self._node) and textures[1] ~= "mt_build_easy_half_red.png" then
+      self.object:set_properties({textures={"mt_build_easy_half_red.png"}})
+    elseif self.volume <= get_node_cap(self._player, self._node) and textures[1] ~= "mt_build_easy_half_green.png" then
+      self.object:set_properties({textures={"mt_build_easy_half_green.png"}})
     end
 
-    set_view_hud(self._player, self, self._materials)
     self._size = size
 
     self._to_pos = mousepos
@@ -838,14 +838,7 @@ minetest.register_entity("mt_build_easy:box", {
   _rotation = 0,
   rotate = function(self)
     self._rotation = (self._rotation + 90)%360
-    print(self._rotation)
   end,
 
   glow = 2,
 })
-
-
-
-minetest.register_globalstep(function(dtime)
-
-end)
