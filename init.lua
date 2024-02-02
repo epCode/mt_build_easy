@@ -668,6 +668,31 @@ local function set_view_hud(player, thing, materials)
 end
 
 
+
+minetest.register_entity("mt_build_easy:single_box", {
+  visual = "mesh",
+  mesh = "selectionbox.obj",
+  textures = {"mt_build_easy_half_green.png"},
+  _player = nil,
+  pointable = false,
+  use_texture_alpha = true,
+  on_activate = function(self)
+    minetest.after(0.1, function()
+      if not self._player then
+        self.object:remove()
+      end
+    end)
+  end,
+  on_step = function(self)
+    if not self._player then return end
+
+    local mousepos = vector.add(get_look_place(self._player, false, true), vector.new(0.5,0.5,0.5))
+    local ppos = vector.round(vector.add(mousepos, vector.new(0.5,0.5,0.5)))
+
+    self.object:set_pos(ppos)
+  end
+})
+
 minetest.register_entity("mt_build_easy:box", {
   visual = "mesh",
   mesh = "selectionbox.obj",
@@ -683,6 +708,7 @@ minetest.register_entity("mt_build_easy:box", {
   _size = vector.new(0,0,0),
   _original_pos = vector.new(0,0,0),
   _ppos = vector.new(0,0,0),
+  _outs = {},
   --_line = true,
   on_activate = function(self)
     minetest.after(0.1, function()
@@ -756,9 +782,21 @@ minetest.register_entity("mt_build_easy:box", {
       self.object:set_rotation(vector.dir_to_rotation(vector.direction(pos, ppos)))
     end
 
+    fake_size.x = fake_size.x-(fake_size.x/8.9)+
+    ((math.abs(fake_size.x)/fake_size.x)/10)
+
+    fake_size.y = fake_size.y-(fake_size.y/8.9)+
+    ((math.abs(fake_size.y)/fake_size.y)/10)
+
+    fake_size.z = fake_size.z-(fake_size.z/8.9)+
+    ((math.abs(fake_size.z)/fake_size.z)/10)
+
+
     self.object:set_properties({
       visual_size = vector.multiply(fake_size, 5),
     })
+
+
 
 
     local dis = vector.distance(pos, ppos)
@@ -768,10 +806,10 @@ minetest.register_entity("mt_build_easy:box", {
     local npos = table.copy(pos)
     if size.x <= 0 then
       size.x = size.x-1
-      npos.x = npos.x - 0.5
+      npos.x = npos.x - 0.58
     else
       size.x = size.x+1
-      npos.x = npos.x + 0.5
+      npos.x = npos.x + 0.58
     end
     if size.y <= 0 then
       size.y = size.y-2
@@ -782,10 +820,10 @@ minetest.register_entity("mt_build_easy:box", {
     end
     if size.z <= 0 then
       size.z = size.z-1
-      npos.z = npos.z - 0.5
+      npos.z = npos.z - 0.58
     else
       size.z = size.z+1
-      npos.z = npos.z + 0.5
+      npos.z = npos.z + 0.58
     end
 
 
@@ -842,11 +880,14 @@ minetest.register_entity("mt_build_easy:box", {
       self.object:set_properties({
         mesh = "selectionbox.obj", -- normal
       })
+      self._flipped = false
     else
       self.object:set_properties({
         mesh = "selectionbox_flipped.obj", -- flipped normals for inverted mesh (used for transpare issues)
       })
+      self._flipped = true
     end
+
 
 
   end,
@@ -855,5 +896,5 @@ minetest.register_entity("mt_build_easy:box", {
     self._rotation = (self._rotation + 90)%360
   end,
 
-  glow = 2,
+  glow = 14,
 })
