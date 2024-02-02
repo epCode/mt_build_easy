@@ -126,7 +126,8 @@ local function naming_build_form(user) -- pick schem to place
     "formspec_version[4]"..
     "size[8,5]"..
     slist..
-    "background[-0.5,-0;9,6;mt_build_easy_mt_bg.png]"
+    "background[-0.5,-0;9,6;mt_build_easy_mt_bg.png]"..
+    "image_button_exit[2.5,4;3,1;mt_build_easy_mt_button.png;close;Close]"
 
 	minetest.show_formspec(user:get_player_name(), "mt_build_easy:name_schem", formspec)
 end
@@ -137,9 +138,10 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 
   if formname == "mt_build_easy:name_schem" then -- form to name the structure
     if not fields[fields.key_enter_field] or fields[fields.key_enter_field] == "" or fields[fields.key_enter_field] == " " then
-      minetest.chat_send_player(player:get_player_name(), minetest.colorize("#f22", "Failed to save structure! Invalid Name."))
+      if not fields["close"] then
+        minetest.chat_send_player(player:get_player_name(), minetest.colorize("#f22", "Failed to save structure! Invalid Name."))
+      end
     else
-
       local path = minetest.get_worldpath().."/"..player:get_player_name().."s_build_schems"
       -- Create directory if it does not already exist
       minetest.mkdir(path)
@@ -298,31 +300,42 @@ local function place_schem(player, pos, path, rot, schem_load)
     for ys = loop1.y, loop2.y do
       for xs = loop1.z, loop2.z do
         local ns = rotate_pos(vector.new(xs,ys,zs), rot, true)
+        local flipp = 0
+        if schem_load._fliped then
+          flipp = math.rad(180)
+          ns.y = loop2.y-ns.y
+        end
         local x,y,z=ns.x+pos.x, ns.y+pos.y, ns.z+pos.z
         tick = tick + 1
 
-        local thisnode = schem_load.data[tick].name
-        node_ticks[thisnode] = node_ticks[thisnode]+1
+        local thisnode = schem_load.data[tick]
+        node_ticks[thisnode.name] = node_ticks[thisnode.name]+1
 
         local vi = a:index(x, y, z)
-        if node_ticks[thisnode] <= node_caps[thisnode] then
+        if node_ticks[thisnode.name] <= node_caps[thisnode.name] then
 
           if has_value(replace, data[vi]) then -- make sure we are placing on placeable ground
               local nodepos = vector.new(x,y,z)
-              --param2data[vi] = node.param2
+              local nodedef = minetest.registered_nodes[thisnode.name]
+              if has_value({"facedir", "4dir"}, nodedef.paramtype2) then
+                param2data[vi] = minetest.dir_to_facedir(vector.rotate(minetest.facedir_to_dir(thisnode.param2), vector.new(0,-math.rad(rot),0)), (nodedef.paramtype2 ~= "4dir"))
+              else
+                param2data[vi] = thisnode.param2
+              end
+              print(minetest.serialize(thisnode.param2))
 
               if SLOWBUILD_ENABLED then
                 minetest.after((ns.y*300+ns.z*math.random(8,20)+ns.x*math.random(8,10))/1000, function()
-                  minetest.set_node(nodepos, {name=thisnode})
+                  minetest.set_node(nodepos, {name=thisnode.name, param2=param2data[vi]})
                 end)
               else
 
-                data[vi] = minetest.get_content_id(schem_load.data[tick].name)
+                data[vi] = minetest.get_content_id(thisnode.name)
               end
           else
-            node_ticks[thisnode] = node_ticks[thisnode]-1
-            if placers[thisnode] then
-              placers[thisnode] = placers[thisnode]-1 -- one less block to be taken from player if not able to place
+            node_ticks[thisnode.name] = node_ticks[thisnode.name]-1
+            if placers[thisnode.name] then
+              placers[thisnode.name] = placers[thisnode.name]-1 -- one less block to be taken from player if not able to place
             end
           end
 
