@@ -376,7 +376,7 @@ end
 
 
 minetest.register_tool("mt_build_easy:copytool", {
-  description = "Structor\n"..minetest.colorize("#288e49", "A tool used to copy structures effortlessly.\nUse+Place and drag to copy any group of nodes"),
+  description = "Structor\n"..minetest.colorize("#288e49", "A tool used to copy structures effortlessly.\nPlace and drag to copy any group of nodes\nThen punch to bring up a list of your saved structures"),
   inventory_image = "mt_build_easy_copytool.png",
   groups = {},
   on_use = function(itemstack, user, pointed_thing)
@@ -388,8 +388,31 @@ minetest.register_tool("mt_build_easy:copytool", {
   on_place = on_place_schem,
 })
 
+local middle_node = "group:wood"
+
+minetest.register_on_mods_loaded(function()
+  for name,def in pairs(minetest.registered_craftitems) do
+    if string.find(name, "emerald") then
+      middle_node = name
+      break
+    elseif string.find(name, "diamond") then
+      middle_node = name
+      print(name)
+    end
+  end
+
+  minetest.register_craft({
+    output = "mt_build_easy:copytool",
+    recipe={
+      {"", "group:stone", "group:stone"},
+      {"", middle_node, "group:stone"},
+      {"group:stone", "", ""},
+    },
+  })
+end)
 
 local function make_new_schem(pos1, pos2, player)
+  minetest.chat_send_all(middle_node)
   schem_create_pos[player] = {pos1, pos2}
 
   naming_build_form(player)
@@ -531,9 +554,9 @@ controls.register_on_release(function(player, key)
 end)
 
 controls.register_on_hold(function(player, key, time)
-  if key ~= "RMB" or not player:get_player_control().aux1 or canceled[player] then return end
-  if playerstuff[player] then return end
   local item = player:get_wielded_item():get_name()
+  if key ~= "RMB" or not (player:get_player_control().aux1 or item == "mt_build_easy:copytool") or canceled[player] then return end
+  if playerstuff[player] then return end
   local copytool, copy
   if item == "mt_build_easy:copytool" then
     item = "air"
@@ -674,7 +697,7 @@ minetest.register_entity("mt_build_easy:single_box", {
   mesh = "selectionbox_single.obj",
   physical = false,
   collide_with_objects = false,
-  textures = {"mt_build_easy_half_copy_box.png", "mt_build_easy_half_copy_box.png"},
+  textures = {"mt_build_easy_half_copy_box.png", "blank.png"},
   _player = nil,
   pointable = false,
   use_texture_alpha = true,
@@ -692,7 +715,7 @@ minetest.register_entity("mt_build_easy:single_box", {
     local props = self.object:get_properties()
 
     if self._tex and props.textures[1] ~= self._tex then
-      self.object:set_properties({textures={self._tex, "mt_build_easy_half_green.png^[opacity:250"}})
+      self.object:set_properties({textures={self._tex, "blank.png"}})
     end
 
     local mousepos = vector.add(get_look_place(self._player, false, self._through), vector.new(0.5,0.5,0.5))
@@ -708,7 +731,7 @@ minetest.register_globalstep(function(dtime)
   for _,player in ipairs(minetest.get_connected_players()) do
     local item = player:get_wielded_item():get_name()
     local ctrl = player:get_player_control()
-    if (item ~= "mt_build_easy:copytool" and not (ctrl.aux1 and ctrl.sneak)) or building_schem[player] or playerstuff[player] then
+    if (item ~= "mt_build_easy:copytool" and not (ctrl.aux1 and ctrl.sneak and minetest.registered_nodes[item])) or building_schem[player] or playerstuff[player] then
       if copytool_box[player] then
         copytool_box[player]:remove()
         copytool_box[player] = nil
@@ -722,7 +745,7 @@ minetest.register_globalstep(function(dtime)
     if item ~= "mt_build_easy:copytool" then
       luaentity._tex = "mt_build_easy_half_green.png"
     else
-      luaentity._through = false
+      luaentity._through = true
     end
   end
 end)
