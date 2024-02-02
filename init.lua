@@ -214,7 +214,7 @@ local function rotate_pos(pos, rot, weird_exeption)
     --self._schempos = vector.add(ppos, vector.new(0,0,-4))
   else
     pos = vector.new(-math.abs(pos.z)+2, pos.y, math.abs(pos.x))
-    --self._schempos = vector.add(ppos, vector.new(0,0,0))
+    --self._schempos = vector.add(ppos, vector.zero())
   end
   return pos
 end
@@ -288,7 +288,7 @@ local function place_schem(player, pos, path, rot, schem_load)
   server_place_que[player][que_table_name] = {}
 
 
-  local loop1 = vector.new(0,0,0)
+  local loop1 = vector.zero()
   local loop2 = vector.new(schem_load.size.z-1,schem_load.size.y-1,schem_load.size.x-1)
 
   loop1, loop2 = vector.sort(loop1, loop2)
@@ -312,7 +312,7 @@ local function place_schem(player, pos, path, rot, schem_load)
         node_ticks[thisnode.name] = node_ticks[thisnode.name]+1
 
         local vi = a:index(x, y, z)
-        if node_ticks[thisnode.name] <= node_caps[thisnode.name] then
+        if node_ticks[thisnode.name] <= node_caps[thisnode.name] and thisnode.name ~= "air" then
 
           if has_value(replace, data[vi]) then -- make sure we are placing on placeable ground
               local nodepos = vector.new(x,y,z)
@@ -667,15 +667,18 @@ local function set_view_hud(player, thing, materials)
   return available
 end
 
-
+local copytool_box = {}
 
 minetest.register_entity("mt_build_easy:single_box", {
   visual = "mesh",
   mesh = "selectionbox.obj",
-  textures = {"mt_build_easy_half_green.png"},
+  physical = false,
+  collide_with_objects = false,
+  textures = {"mt_build_easy_half_copy_box.png^[opacity:100"},
   _player = nil,
   pointable = false,
   use_texture_alpha = true,
+  visual_size = vector.new(5,5,5),
   on_activate = function(self)
     minetest.after(0.1, function()
       if not self._player then
@@ -689,25 +692,47 @@ minetest.register_entity("mt_build_easy:single_box", {
     local mousepos = vector.add(get_look_place(self._player, false, true), vector.new(0.5,0.5,0.5))
     local ppos = vector.round(vector.add(mousepos, vector.new(0.5,0.5,0.5)))
 
-    self.object:set_pos(ppos)
+    ppos = vector.add(ppos, vector.new(0.1,-0.1,0.1))
+
+    self.object:set_pos(vector.add(ppos, vector.new(-0.5,-1.5,-0.5)))
   end
 })
+
+minetest.register_globalstep(function(dtime)
+  for _,player in ipairs(minetest.get_connected_players()) do
+    local item = player:get_wielded_item():get_name()
+    if item ~= "mt_build_easy:copytool" or building_schem[player] or playerstuff[player] then
+      if copytool_box[player] then
+        copytool_box[player]:remove()
+        copytool_box[player] = nil
+      end
+      return
+    end
+    if copytool_box[player] then return end
+    copytool_box[player] = minetest.add_entity(vector.zero(), "mt_build_easy:single_box")
+    local luaentity = copytool_box[player]:get_luaentity()
+    luaentity._player = player
+
+  end
+end)
 
 minetest.register_entity("mt_build_easy:box", {
   visual = "mesh",
   mesh = "selectionbox.obj",
   textures = {"mt_build_easy_half_green.png"},
   _player = nil,
+  physical = false,
+  collide_with_objects = false,
   _node = {name="air"},
   pointable = false,
   use_texture_alpha = true,
   volume = 0,
-  _to_pos = vector.new(0,0,0),
-  _scale_pos = vector.new(0,0,0),
-  _old_ppos = vector.new(0,0,0),
-  _size = vector.new(0,0,0),
-  _original_pos = vector.new(0,0,0),
-  _ppos = vector.new(0,0,0),
+  _to_pos = vector.zero(),
+  _scale_pos = vector.zero(),
+  _old_ppos = vector.zero(),
+  _size = vector.zero(),
+  _original_pos = vector.zero(),
+  _ppos = vector.zero(),
   _outs = {},
   --_line = true,
   on_activate = function(self)
@@ -750,7 +775,7 @@ minetest.register_entity("mt_build_easy:box", {
         --self._schempos = vector.add(ppos, vector.new(0,0,-4))
       else
         size = vector.new(size.z, size.y, size.x)
-        --self._schempos = vector.add(ppos, vector.new(0,0,0))
+        --self._schempos = vector.add(ppos, vector.zero())
       end]]
       ppos = vector.add(ppos, size)
     end
