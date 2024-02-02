@@ -671,10 +671,10 @@ local copytool_box = {}
 
 minetest.register_entity("mt_build_easy:single_box", {
   visual = "mesh",
-  mesh = "selectionbox.obj",
+  mesh = "selectionbox_single.obj",
   physical = false,
   collide_with_objects = false,
-  textures = {"mt_build_easy_half_copy_box.png^[opacity:100"},
+  textures = {"mt_build_easy_half_copy_box.png", "mt_build_easy_half_copy_box.png"},
   _player = nil,
   pointable = false,
   use_texture_alpha = true,
@@ -689,7 +689,13 @@ minetest.register_entity("mt_build_easy:single_box", {
   on_step = function(self)
     if not self._player then return end
 
-    local mousepos = vector.add(get_look_place(self._player, false, true), vector.new(0.5,0.5,0.5))
+    local props = self.object:get_properties()
+
+    if self._tex and props.textures[1] ~= self._tex then
+      self.object:set_properties({textures={self._tex, "mt_build_easy_half_green.png^[opacity:250"}})
+    end
+
+    local mousepos = vector.add(get_look_place(self._player, false, self._through), vector.new(0.5,0.5,0.5))
     local ppos = vector.round(vector.add(mousepos, vector.new(0.5,0.5,0.5)))
 
     ppos = vector.add(ppos, vector.new(0.1,-0.1,0.1))
@@ -701,7 +707,8 @@ minetest.register_entity("mt_build_easy:single_box", {
 minetest.register_globalstep(function(dtime)
   for _,player in ipairs(minetest.get_connected_players()) do
     local item = player:get_wielded_item():get_name()
-    if item ~= "mt_build_easy:copytool" or building_schem[player] or playerstuff[player] then
+    local ctrl = player:get_player_control()
+    if (item ~= "mt_build_easy:copytool" and not (ctrl.aux1 and ctrl.sneak)) or building_schem[player] or playerstuff[player] then
       if copytool_box[player] then
         copytool_box[player]:remove()
         copytool_box[player] = nil
@@ -712,7 +719,11 @@ minetest.register_globalstep(function(dtime)
     copytool_box[player] = minetest.add_entity(vector.zero(), "mt_build_easy:single_box")
     local luaentity = copytool_box[player]:get_luaentity()
     luaentity._player = player
-
+    if item ~= "mt_build_easy:copytool" then
+      luaentity._tex = "mt_build_easy_half_green.png"
+    else
+      luaentity._through = false
+    end
   end
 end)
 
@@ -921,5 +932,4 @@ minetest.register_entity("mt_build_easy:box", {
     self._rotation = (self._rotation + 90)%360
   end,
 
-  glow = 14,
 })
