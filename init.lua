@@ -318,7 +318,25 @@ local function place_schem(player, pos, path, rot, schem_load)
               local nodepos = vector.new(x,y,z)
               local nodedef = minetest.registered_nodes[thisnode.name]
               if has_value({"facedir", "4dir"}, nodedef.paramtype2) then
-                param2data[vi] = minetest.dir_to_facedir(vector.rotate(minetest.facedir_to_dir(thisnode.param2), vector.new(0,-math.rad(rot),0)), (nodedef.paramtype2 ~= "4dir"))
+                if thisnode.param2 > 19 and thisnode.param2 < 24 then
+                  local addendum = 20
+                  if thisnode.param2 == 23 then
+                    if rot ~= 0 and rot ~= 90 then
+                      addendum = 18
+                    else
+                      addendum = 22
+                    end
+                  elseif thisnode.param2 == 21 then
+                    if rot ~= 0 and rot ~= 90 then
+                      addendum = 22
+                    else
+                      addendum = 18
+                    end
+                  end
+                  param2data[vi] = minetest.dir_to_facedir(vector.rotate_around_axis(minetest.facedir_to_dir(thisnode.param2), vector.new(0,1,0), math.rad(rot)), false)+addendum
+                else
+                  param2data[vi] = minetest.dir_to_facedir(vector.rotate_around_axis(minetest.facedir_to_dir(thisnode.param2), vector.new(0,1,0), -math.rad(rot)), (nodedef.paramtype2 == "4dir"))
+                end
               else
                 param2data[vi] = thisnode.param2
               end
@@ -412,7 +430,6 @@ minetest.register_on_mods_loaded(function()
 end)
 
 local function make_new_schem(pos1, pos2, player)
-  minetest.chat_send_all(middle_node)
   schem_create_pos[player] = {pos1, pos2}
 
   naming_build_form(player)
@@ -473,48 +490,41 @@ local function place_stuff(node, placer) -- the function to place the nodes in s
     local p1p2dir = vector.direction(luaentity._original_pos, luaentity._ppos)
     --local line = true
 
-    if line then -- possible addition
-      for i=1, p1p2dist do
-        local newpos = vector.round(vector.add(luaentity._original_pos, vector.multiply(p1p2dir,i)))
-        local vi = a:index(newpos.x, newpos.y, newpos.z)
-        local opos = vector.subtract(newpos,luaentity._original_pos)
-        if SLOWBUILD_ENABLED then
-          minetest.after(((opos.y)*300+opos.z*math.random(16,20)+opos.x*math.random(5,8))/1000, function()
-            minetest.set_node(newpos, node)
-          end)
-        else
-          param2data[vi] = node.param2
-          data[vi] = c_stuff
-        end
-      end
-    else
-      -- Modify data
-      for z = pos1.z, pos2.z do
-        for y = pos1.y, pos2.y do
-          for x = pos1.x, pos2.x do
-            tick = tick + 1
-            local vi = a:index(x, y, z)
-            if has_value(replace, data[vi]) then -- make sure we are placing on placeable ground
-              local opos = vector.subtract(vector.new(x,y,z),pos1)
-              if tick > cap then break end
-              local pos = vector.new(x,y,z)
-              if SLOWBUILD_ENABLED then
-                minetest.after(((opos.y)*300+opos.z*math.random(16,20)+opos.x*math.random(5,8))/1000, function()
-                  minetest.set_node(vector.new(x,y,z), node)
-                end)
-              else
-                param2data[vi] = node.param2
-                data[vi] = c_stuff
-              end
+    local sound = minetest.registered_nodes[node.name].sounds
+
+    -- Modify data
+    for z = pos1.z, pos2.z do
+      for y = pos1.y, pos2.y do
+        for x = pos1.x, pos2.x do
+          tick = tick + 1
+          local vi = a:index(x, y, z)
+          if has_value(replace, data[vi]) then -- make sure we are placing on placeable ground
+            local opos = vector.subtract(vector.new(x,y,z),pos1)
+            if tick > cap then break end
+            local pos = vector.new(x,y,z)
+            if SLOWBUILD_ENABLED then
+              minetest.after(((opos.y)*300+opos.z*math.random(60,80)+opos.x*math.random(50,55))/1000, function()
+                minetest.set_node(vector.new(x,y,z), node)
+                if sound and math.random(9) == 1 then
+                  minetest.sound_play(sound.place, {
+                      gain = 0.3,
+                      pos = vector.new(x,y,z),
+                      max_hear_distance = 15
+                  }, true)
+                end
+              end)
             else
-              tick = tick-1
-              use_less = use_less+1 -- one less block to be taken from player if not able to place
+              param2data[vi] = node.param2
+              data[vi] = c_stuff
             end
+          else
+            tick = tick-1
+            use_less = use_less+1 -- one less block to be taken from player if not able to place
           end
-          if tick > cap then break end
         end
         if tick > cap then break end
       end
+      if tick > cap then break end
     end
 
     take_items(placer, node, (luaentity.volume or 0)-use_less)
@@ -535,6 +545,7 @@ minetest.register_on_placenode(function(pos, newnode, placer, oldnode, itemstack
 
   local ctrl = placer:get_player_control()
 
+  print(newnode.param2)
   if not playerstuff[placer] and not (ctrl.RMB and ctrl.aux1) then return end
   minetest.remove_node(pos)
   return true
@@ -590,10 +601,10 @@ end
 
 controls.register_on_press(function(player, key)
   if key == "RMB" then canceled[player] = false end
-
   if key == "aux1" and building_schem[player] then
     building_schem[player]:get_luaentity().rotate(building_schem[player]:get_luaentity())
   end
+
 
   if key ~= "LMB" or not (playerstuff[player] or building_schem[player]) then return end
   if building_schem[player] then
@@ -895,7 +906,10 @@ minetest.register_entity("mt_build_easy:box", {
 
     if (self._node and self._node.name ~= "air" and self._player:get_wielded_item():get_name() ~= self._node.name) or (self._node.name == "air" and self._player:get_wielded_item():get_name() ~= "mt_build_easy:copytool") then
       remove_view_hud(self._player)
-      self.object:remove() return
+      building_schem[self._player] = nil
+      playerstuff[self._player] = nil
+      self.object:remove()
+      return
     end
 
     self._old_ppos = ppos
