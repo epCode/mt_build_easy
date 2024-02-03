@@ -295,6 +295,7 @@ local function place_schem(player, pos, path, rot, schem_load)
 
 
 
+
   -- Modify data
   for zs = loop1.x, loop2.x do
     for ys = loop1.y, loop2.y do
@@ -345,6 +346,24 @@ local function place_schem(player, pos, path, rot, schem_load)
               if SLOWBUILD_ENABLED then
                 minetest.after((ns.y*300+ns.z*math.random(8,20)+ns.x*math.random(8,10))/1000, function()
                   minetest.set_node(nodepos, {name=thisnode.name, param2=param2data[vi]})
+
+
+                  local sound = minetest.registered_nodes[thisnode.name].sounds
+                  local sounds = {}
+                  if sound then
+                    sounds = {(sound.dig or ""), (sound.place or "")}
+                  end
+
+
+                  local darea = math.abs(loop2.x)*math.abs(loop2.z)
+
+                  if sound and math.random(darea/25) == 1 then
+                    minetest.sound_play(sounds[math.random(2)], {
+                        gain = 1,
+                        pos = vector.new(x,y,z),
+                        max_hear_distance = 15
+                    }, true)
+                  end
                 end)
               else
 
