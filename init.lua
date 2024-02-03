@@ -791,17 +791,17 @@ minetest.register_entity("mt_build_easy:single_box", {
     if not self._player then return end
 
     if playerstuff[self._player] or building_schem[self._player] then
-      self.object:set_properties({mesh="selectionbox_axis.obj", use_texture_alpha = false})
+      self.object:set_properties({textures = {"mt_build_easy_axis.png"}, mesh="selectionbox_axis.obj", use_texture_alpha = false})
 
     else
       self.object:set_properties({mesh="selectionbox_single.obj", use_texture_alpha = true})
+      if self._tex and props.textures[1] ~= self._tex then
+        self.object:set_properties({textures={self._tex, "blank.png"}})
+      end
     end
 
     local props = self.object:get_properties()
 
-    if self._tex and props.textures[1] ~= self._tex then
-      self.object:set_properties({textures={self._tex, "blank.png"}})
-    end
 
     local mousepos = vector.add(get_look_place(self._player, false, self._through), vector.new(0.5,0.5,0.5))
     local ppos = vector.round(vector.add(mousepos, vector.new(0.5,0.5,0.5)))
