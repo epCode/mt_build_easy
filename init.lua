@@ -10,7 +10,7 @@ local schem_create_pos = {}
 
 local MAXVOLUMECOPY = minetest.settings:get("MAXVOLUMECOPY") or 10000
 
-local SLOWBUILD_ENABLED = minetest.settings:get("SLOWBUILD_ENABLED") or true
+local SLOWBUILD_ENABLED = (minetest.settings:get("SLOWBUILD_ENABLED")) or "true"
 
 local server_place_que = {}
 
@@ -68,8 +68,17 @@ local function get_look_place(player, dir, inside_node) -- gets the exact loctai
   if not player then
     return
   end
+  local item = minetest.registered_items[player:get_wielded_item():get_name()]
+  local hand = minetest.registered_items[""]
 
-  local reach = minetest.registered_items[player:get_wielded_item():get_name()].range or minetest.registered_items[""].range or 4
+  local reach = 4
+
+  if item then
+    reach = item.range or 4
+  elseif hand then
+    reach = hand.range or 4
+  end
+
 
   local mousepos = vector.add(vector.add(vector.multiply(player:get_look_dir(), reach), vector.new(0,player:get_properties().eye_height,0)), player:get_pos())
   local view = vector.add(vector.new(0,player:get_properties().eye_height,0), player:get_pos())
@@ -342,7 +351,7 @@ local function place_schem(player, pos, path, rot, schem_load)
                 param2data[vi] = thisnode.param2
               end
 
-              if SLOWBUILD_ENABLED then
+              if SLOWBUILD_ENABLED == "true" then
                 minetest.after((ns.y*300+ns.z*math.random(8,20)+ns.x*math.random(8,10))/1000, function()
                   minetest.set_node(nodepos, {name=thisnode.name, param2=param2data[vi]})
 
@@ -384,7 +393,7 @@ local function place_schem(player, pos, path, rot, schem_load)
     take_items(player, {name=node}, amount)
   end
 
-  if not SLOWBUILD_ENABLED then
+  if SLOWBUILD_ENABLED == "false" then
     -- Write data
     vm:set_data(data)
     vm:set_param2_data(param2data)
@@ -523,7 +532,7 @@ local function place_stuff(node, placer) -- the function to place the nodes in s
             local opos = vector.subtract(vector.new(x,y,z),pos1)
             if tick > cap then break end
             local pos = vector.new(x,y,z)
-            if SLOWBUILD_ENABLED then
+            if SLOWBUILD_ENABLED == "true" then
               minetest.after(((opos.y)*300+opos.z*math.random(60,80)+opos.x*math.random(50,55))/1000, function()
                 minetest.set_node(vector.new(x,y,z), node)
                 local darea = math.abs(pos2.x-pos1.x)*math.abs(pos2.z-pos1.z)
@@ -551,7 +560,7 @@ local function place_stuff(node, placer) -- the function to place the nodes in s
     end
 
     take_items(placer, node, (luaentity.volume or 0)-use_less)
-    if not SLOWBUILD_ENABLED then
+    if not SLOWBUILD_ENABLED ~= "true" then
       -- Write data
       vm:set_data(data)
       vm:set_param2_data(param2data)
@@ -828,7 +837,6 @@ minetest.register_entity("mt_build_easy:box", {
       local size = self._schem.size
       size = rotate_pos(size, dir)
       self._sizze = size
-      --minetest.chat_send_all(vector.to_string(size))
 
       --print(dir)
       --[[
