@@ -420,6 +420,31 @@ local function on_place_schem(itemstack, placer, pointed_thing)
 end
 
 
+local function player_start_building(itemstack, player, pointed_thing, item, copy, copytool)
+  if not minetest.registered_nodes[item.name] then return end
+  local obj = minetest.add_entity(vector.subtract(get_look_place(player, false, copytool), vector.new(0.5,0.5,0.5)), "mt_build_easy:box")
+  obj:get_luaentity()._player = player
+  obj:get_luaentity()._copy = copy
+
+  obj:get_luaentity()._original_pos = vector.round(get_look_place(player, false, copytool))
+  obj:get_luaentity()._node = {name=item.name, param2=item.param2 or minetest.dir_to_facedir(
+    get_look_place(player, true)
+  , true)}
+  playerstuff[player] = obj
+end
+
+
+minetest.register_tool("mt_build_easy:buildtool", {
+  description = "Build Tool\n"..minetest.colorize("#288e49", "A tool used to copy structures effortlessly.\nPlace and drag to copy any group of nodes\nThen punch to bring up a list of your saved structures"),
+  inventory_image = "mt_build_easy_copytool.png",
+  groups = {not_in_creative_inventory=1},
+  on_use = function(itemstack, user, pointed_thing)
+    player_start_building(itemstack, user, pointed_thing)
+  end,
+  --on_secondary_use = cancel_build(player),
+  --on_place = eyedropper(),
+})
+
 minetest.register_tool("mt_build_easy:copytool", {
   description = "Structor\n"..minetest.colorize("#288e49", "A tool used to copy structures effortlessly.\nPlace and drag to copy any group of nodes\nThen punch to bring up a list of your saved structures"),
   inventory_image = "mt_build_easy_copytool.png",
@@ -432,6 +457,7 @@ minetest.register_tool("mt_build_easy:copytool", {
   on_secondary_use = on_place_schem,
   on_place = on_place_schem,
 })
+
 
 local middle_node = "group:wood"
 
@@ -577,7 +603,19 @@ minetest.register_on_placenode(function(pos, newnode, placer, oldnode, itemstack
 
   local ctrl = placer:get_player_control()
 
-  if not playerstuff[placer] and not (ctrl.RMB and ctrl.aux1) then return end
+  if not playerstuff[placer] then
+    player_start_building(nil, placer, nil, newnode)
+    print(newnode.param2)
+  end
+
+
+  if not playerstuff[placer] and not (ctrl.RMB and ctrl.aux1) then
+
+    return
+  end
+
+
+
   minetest.remove_node(pos)
   return true
 end)
@@ -605,16 +643,8 @@ controls.register_on_hold(function(player, key, time)
     copy = true
     copytool = true
   end
-  if not minetest.registered_nodes[item] then return end
-  local obj = minetest.add_entity(vector.subtract(get_look_place(player, false, copytool), vector.new(0.5,0.5,0.5)), "mt_build_easy:box")
-  obj:get_luaentity()._player = player
-  obj:get_luaentity()._copy = copy
+  player_start_building(nil, player, nil, {name=item}, copy, copytool)
 
-  obj:get_luaentity()._original_pos = vector.round(get_look_place(player, false, copytool))
-  obj:get_luaentity()._node = {name=item, param2=minetest.dir_to_facedir(
-    get_look_place(player, true)
-  , true)}
-  playerstuff[player] = obj
 end)
 
 local function remove_view_hud(player)
