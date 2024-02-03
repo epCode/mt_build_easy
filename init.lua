@@ -420,13 +420,13 @@ local function on_place_schem(itemstack, placer, pointed_thing)
 end
 
 
-local function player_start_building(itemstack, player, pointed_thing, item, copy, copytool)
+local function player_start_building(pos, itemstack, player, pointed_thing, item, copy, copytool)
   if not minetest.registered_nodes[item.name] then return end
   local obj = minetest.add_entity(vector.subtract(get_look_place(player, false, copytool), vector.new(0.5,0.5,0.5)), "mt_build_easy:box")
   obj:get_luaentity()._player = player
   obj:get_luaentity()._copy = copy
 
-  obj:get_luaentity()._original_pos = vector.round(get_look_place(player, false, copytool))
+  obj:get_luaentity()._original_pos = pos or vector.round(get_look_place(player, false, copytool))
   obj:get_luaentity()._node = {name=item.name, param2=item.param2 or minetest.dir_to_facedir(
     get_look_place(player, true)
   , true)}
@@ -439,7 +439,7 @@ minetest.register_tool("mt_build_easy:buildtool", {
   inventory_image = "mt_build_easy_copytool.png",
   groups = {not_in_creative_inventory=1},
   on_use = function(itemstack, user, pointed_thing)
-    player_start_building(itemstack, user, pointed_thing)
+    player_start_building(pos, itemstack, user, pointed_thing)
   end,
   --on_secondary_use = cancel_build(player),
   --on_place = eyedropper(),
@@ -604,7 +604,7 @@ minetest.register_on_placenode(function(pos, newnode, placer, oldnode, itemstack
   local ctrl = placer:get_player_control()
 
   if not playerstuff[placer] then
-    player_start_building(nil, placer, nil, newnode)
+    player_start_building(pos, nil, placer, nil, newnode)
     print(newnode.param2)
   end
 
@@ -643,7 +643,7 @@ controls.register_on_hold(function(player, key, time)
     copy = true
     copytool = true
   end
-  player_start_building(nil, player, nil, {name=item}, copy, copytool)
+  player_start_building(nil, nil, player, nil, {name=item}, copy, copytool)
 
 end)
 
