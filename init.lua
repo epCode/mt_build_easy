@@ -341,7 +341,6 @@ local function place_schem(player, pos, path, rot, schem_load)
               else
                 param2data[vi] = thisnode.param2
               end
-              print(minetest.serialize(thisnode.param2))
 
               if SLOWBUILD_ENABLED then
                 minetest.after((ns.y*300+ns.z*math.random(8,20)+ns.x*math.random(8,10))/1000, function()
@@ -434,7 +433,6 @@ minetest.register_on_mods_loaded(function()
       break
     elseif string.find(name, "diamond") then
       middle_node = name
-      print(name)
     end
   end
 
@@ -570,7 +568,6 @@ minetest.register_on_placenode(function(pos, newnode, placer, oldnode, itemstack
 
   local ctrl = placer:get_player_control()
 
-  print(newnode.param2)
   if not playerstuff[placer] and not (ctrl.RMB and ctrl.aux1) then return end
   minetest.remove_node(pos)
   return true
