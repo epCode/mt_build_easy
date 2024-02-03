@@ -491,6 +491,10 @@ local function place_stuff(node, placer) -- the function to place the nodes in s
     --local line = true
 
     local sound = minetest.registered_nodes[node.name].sounds
+    local sounds = {}
+    if sound then
+      sounds = {(sound.dig or ""), (sound.place or "")}
+    end
 
     -- Modify data
     for z = pos1.z, pos2.z do
@@ -505,9 +509,11 @@ local function place_stuff(node, placer) -- the function to place the nodes in s
             if SLOWBUILD_ENABLED then
               minetest.after(((opos.y)*300+opos.z*math.random(60,80)+opos.x*math.random(50,55))/1000, function()
                 minetest.set_node(vector.new(x,y,z), node)
-                if sound and math.random(9) == 1 then
-                  minetest.sound_play(sound.place, {
-                      gain = 0.3,
+                local darea = math.abs(pos2.x-pos1.x)*math.abs(pos2.z-pos1.z)
+
+                if sound and math.random(darea/25) == 1 then
+                  minetest.sound_play(sounds[math.random(2)], {
+                      gain = 1,
                       pos = vector.new(x,y,z),
                       max_hear_distance = 15
                   }, true)
