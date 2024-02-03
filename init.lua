@@ -420,7 +420,7 @@ local function on_place_schem(itemstack, placer, pointed_thing)
 end
 
 
-local function player_start_building(pos, itemstack, player, pointed_thing, item, copy, copytool)
+local function player_start_building(pos, player, item, copy, copytool)
   if not minetest.registered_nodes[item.name] then return end
   local obj = minetest.add_entity(vector.subtract(get_look_place(player, false, copytool), vector.new(0.5,0.5,0.5)), "mt_build_easy:box")
   obj:get_luaentity()._player = player
@@ -439,10 +439,16 @@ minetest.register_tool("mt_build_easy:buildtool", {
   inventory_image = "mt_build_easy_copytool.png",
   groups = {not_in_creative_inventory=1},
   on_use = function(itemstack, user, pointed_thing)
-    player_start_building(pos, itemstack, user, pointed_thing)
+    print(itemstack:get_meta():get_string("item"))
+    player_start_building(nil, user, itemstack:get_meta():get_string("item"))
   end,
   --on_secondary_use = cancel_build(player),
-  --on_place = eyedropper(),
+  on_place = function(itemstack, placer, pointed_thing)
+    local node = minetest.get_node(pointed_thing.under)
+    if node and node.name and minetest.registered_nodes[node.name] then
+      itemstack:get_meta():set_string("item", node.name)
+    end
+  end,
 })
 
 minetest.register_tool("mt_build_easy:copytool", {
@@ -604,7 +610,7 @@ minetest.register_on_placenode(function(pos, newnode, placer, oldnode, itemstack
   local ctrl = placer:get_player_control()
 
   if not playerstuff[placer] then
-    player_start_building(pos, nil, placer, nil, newnode)
+    player_start_building(pos,  placer, newnode)
     print(newnode.param2)
   end
 
@@ -643,7 +649,7 @@ controls.register_on_hold(function(player, key, time)
     copy = true
     copytool = true
   end
-  player_start_building(nil, nil, player, nil, {name=item}, copy, copytool)
+  player_start_building(nil, player, {name=item}, copy, copytool)
 
 end)
 
@@ -784,6 +790,13 @@ minetest.register_entity("mt_build_easy:single_box", {
   on_step = function(self)
     if not self._player then return end
 
+    if playerstuff[self._player] or building_schem[self._player] then
+      self.object:set_properties({mesh="selectionbox_axis.obj", use_texture_alpha = false})
+
+    else
+      self.object:set_properties({mesh="selectionbox_single.obj", use_texture_alpha = true})
+    end
+
     local props = self.object:get_properties()
 
     if self._tex and props.textures[1] ~= self._tex then
@@ -803,7 +816,7 @@ minetest.register_globalstep(function(dtime)
   for _,player in ipairs(minetest.get_connected_players()) do
     local item = player:get_wielded_item():get_name()
     local ctrl = player:get_player_control()
-    if (item ~= "mt_build_easy:copytool" and not (ctrl.aux1 and ctrl.sneak and minetest.registered_nodes[item])) or building_schem[player] or playerstuff[player] then
+    if (item ~= "mt_build_easy:copytool" and not (ctrl.aux1 and ctrl.sneak and minetest.registered_nodes[item]) and not playerstuff[player] and not building_schem[player]) then
       if copytool_box[player] then
         copytool_box[player]:remove()
         copytool_box[player] = nil
