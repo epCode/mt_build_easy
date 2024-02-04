@@ -790,6 +790,7 @@ minetest.register_entity("mt_build_easy:single_box", {
   on_step = function(self)
     if not self._player then return end
 
+    local props = self.object:get_properties()
     if playerstuff[self._player] or building_schem[self._player] then
       self.object:set_properties({textures = {"mt_build_easy_axis.png"}, mesh="selectionbox_axis.obj", use_texture_alpha = false})
 
@@ -800,7 +801,6 @@ minetest.register_entity("mt_build_easy:single_box", {
       end
     end
 
-    local props = self.object:get_properties()
 
 
     local mousepos = vector.add(get_look_place(self._player, false, self._through), vector.new(0.5,0.5,0.5))
