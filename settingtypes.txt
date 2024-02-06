@@ -4,3 +4,5 @@ BUILD_SYTLE (Build Style) enum build_tool build_tool,build_mode,classic
 # Build tool makes you to need to create a build tool to use the functionality of the mod
 # Build mode makes the player have to go into build mode to then start building (no tool needed)
 # Classic mode allows the player access to functionality all the time if you hold aux1.
+
+BUILDPLACEDELAY (The delay between holding place and box building) float 0.2 0.0 5.0

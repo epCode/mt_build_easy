@@ -5,12 +5,15 @@ local building_schem_index = {}
 
 local material_hud = {}
 
+local player_placed = {}
 
 local schem_create_pos = {}
 
-local MAXVOLUMECOPY = minetest.settings:get("MAXVOLUMECOPY") or 10000
+local MAXVOLUMECOPY = tonumber(minetest.settings:get("MAXVOLUMECOPY")) or 10000
 
 local SLOWBUILD_ENABLED = (minetest.settings:get("SLOWBUILD_ENABLED")) or "true"
+
+local BUILDPLACEDELAY = tonumber((minetest.settings:get("BUILDPLACEDELAY"))) or 0.2
 
 local server_place_que = {}
 
@@ -612,12 +615,7 @@ minetest.register_on_placenode(function(pos, newnode, placer, oldnode, itemstack
   local amountleft = itemstack:get_count()
 
   if not playerstuff[placer] then
-    minetest.after(0.2, function()
-      if placer and placer:get_velocity() and not playerstuff[placer] and placer:get_player_control().RMB and placer:get_wielded_item():get_name() == newnode.name then
-        player_start_building(pos,  placer, newnode)
-        return true
-      end
-    end)
+    player_placed[placer] = BUILDPLACEDELAY
   end
 
 
@@ -635,6 +633,7 @@ end)
 
 controls.register_on_release(function(player, key)
   if key ~= "RMB" then return end
+  player_placed[player] = nil
   canceled[player] = false
   if not playerstuff[player] then return else
     player_place_que = {}
@@ -647,7 +646,7 @@ end)
 
 controls.register_on_hold(function(player, key, time)
   local item = player:get_wielded_item():get_name()
-  if key ~= "RMB" or time < 0.3 or not (player:get_player_control().aux1 or item == "mt_build_easy:copytool") or canceled[player] then return end
+  if key ~= "RMB" or time < BUILDPLACEDELAY or not (player:get_player_control().aux1 or item == "mt_build_easy:copytool") or canceled[player] then return end
   if playerstuff[player] then return end
   local copytool, copy
   if item == "mt_build_easy:copytool" then
@@ -820,6 +819,18 @@ minetest.register_entity("mt_build_easy:single_box", {
 
 minetest.register_globalstep(function(dtime)
   for _,player in ipairs(minetest.get_connected_players()) do
+
+    if player_placed[player] then
+      if player_placed[player] < 0 then
+        if player_placed[player] and player and player:get_velocity() and not playerstuff[player] and player:get_player_control().RMB and player:get_wielded_item():get_name() == newnode.name then
+          player_start_building(pos,  player, newnode)
+          return true
+        end
+      end
+      player_placed[player] = nil
+    end
+
+
     local item = player:get_wielded_item():get_name()
     local ctrl = player:get_player_control()
     if (item ~= "mt_build_easy:copytool" and not (ctrl.aux1 and ctrl.sneak and minetest.registered_nodes[item]) and not playerstuff[player] and not building_schem[player]) then
