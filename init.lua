@@ -609,9 +609,15 @@ minetest.register_on_placenode(function(pos, newnode, placer, oldnode, itemstack
 
   local ctrl = placer:get_player_control()
 
+  local amountleft = itemstack:get_count()
+
   if not playerstuff[placer] then
-    player_start_building(pos,  placer, newnode)
-    print(newnode.param2)
+    minetest.after(0.2, function()
+      if placer and placer:get_velocity() and not playerstuff[placer] and placer:get_player_control().RMB and placer:get_wielded_item():get_name() == newnode.name then
+        player_start_building(pos,  placer, newnode)
+        return true
+      end
+    end)
   end
 
 
@@ -641,7 +647,7 @@ end)
 
 controls.register_on_hold(function(player, key, time)
   local item = player:get_wielded_item():get_name()
-  if key ~= "RMB" or not (player:get_player_control().aux1 or item == "mt_build_easy:copytool") or canceled[player] then return end
+  if key ~= "RMB" or time < 0.3 or not (player:get_player_control().aux1 or item == "mt_build_easy:copytool") or canceled[player] then return end
   if playerstuff[player] then return end
   local copytool, copy
   if item == "mt_build_easy:copytool" then
